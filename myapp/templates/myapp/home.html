@@ -1,32 +1,172 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>Hello World</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-        }
-        #message {
-            font-size: 2em;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <title>myIMDB</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
 <body>
-    <h1>Olá, Mundo!</h1>
-    <div id="message"></div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">myIMDB</a>
+        <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+            <form class="form-inline my-2 my-lg-0" id="searchForm">
+                <input class="form-control mr-sm-2" type="search" placeholder="Procurar atores ou filmes" aria-label="Search" id="searchBox">
+                <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Procurar</button>
+            </form>
+        </div>
+        <span id="loginStatus" class="ml-2"></span>
+        <button class="btn btn-outline-primary my-2 my-sm-0" type="button">Login</button>
+    </nav>
+    <!-- Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="loginModalLabel">Login</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input type="text" class="form-control" id="username" placeholder="Enter username">
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" class="form-control" id="password" placeholder="Password">
+            </div>
+            <button type="submit" class="btn btn-primary">Logar</button>
+            
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+      // Variável para armazenar o token
+      var token;
+  
+      $(document).ready(function() {
+          // Mostrar o modal quando o botão de login for clicado
+          $('.btn-outline-primary').click(function() {
+              $('#loginModal').modal('show');
+          });
+  
+          // Enviar a solicitação POST quando o formulário for submetido
+          $('#loginForm').submit(function(e) {
+              e.preventDefault();
+  
+              $.ajax({
+                  url: 'https://lacinho.pythonanywhere.com/api/user/login',
+                  type: 'POST',
+                  data: JSON.stringify({
+                      username: $('#username').val(),
+                      password: $('#password').val()
+                  }),
+                  contentType: 'application/json',
+                  success: function(data) {
+                      // Armazenar o token na variável
+                      token = data.token;
+  
+                      // Fechar o modal
+                      $('#loginModal').modal('hide');
+                  },
+                  error: function() {
+                      alert('Erro ao fazer login');
+                  }
+              });
+          });
+      });
+      setInterval(function() {
+        var status = (token) ? 'Logado' : 'Visitante';
+        $('#loginStatus').text(status);
+    }, 1000);
+  </script>
+  
+    <div id="atores" class="container">
+        <h2>Atores</h2>
+        <div id="atores-list" class="row"></div>
+    </div>
+    <div id="filmes" class="container">
+        <h2>Filmes</h2>
+        <div id="filmes-list" class="row"></div>
+    </div>
     <script>
-        fetch('https://lacinho.pythonanywhere.com/api/hello/')
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('message').textContent = data.message;
+        $(document).ready(function() {
+            $.getJSON('https://lacinho.pythonanywhere.com/api/ator/all', function(data) {
+                if (data.length > 0) {
+                    data.forEach(function(ator) {
+                        $('#atores-list').append('<div class="col-sm-4"><p>' + ator.nome + '</p></div>');
+                    });
+                } else {
+                    $('#atores').hide();
+                }
             });
+
+            $.getJSON('https://lacinho.pythonanywhere.com/api/filme/all', function(data) {
+                if (data.length > 0) {
+                    data.forEach(function(filme) {
+                        var atores = filme.atores.map(function(ator) { return ator.nome; }).join(', ');
+                        $('#filmes-list').append('<div class="col-sm-4"><h3>' + filme.titulo + '</h3><p>Atores: ' + atores + '</p><p>Diretor: ' + filme.diretor.nome + '</p><p>Ano: ' + filme.ano + '</p><p>Sinopse: ' + filme.sinopse + '</p></div>');
+                    });
+                } else {
+                    $('#filmes').hide();
+                }
+            });
+        });
     </script>
+    
+    <div id="movieContainer"></div>
+    <script>
+        // Função para criar o bloco de filmes
+        function createMovieBlock(movie) {
+            return `
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">${movie.titulo}</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">${movie.ano}</h6>
+                        <p class="card-text">${movie.sinopse}</p>
+                        <p class="card-text"><small class="text-muted">Diretor: ${movie.diretor.nome}</small></p>
+                        <p class="card-text"><small class="text-muted">Atores: ${movie.atores.map(a => a.nome).join(', ')}</small></p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Função para fazer a pesquisa
+        function searchMovies(query) {
+            $.post('https://lacinho.pythonanywhere.com/api/filme/films_by_actor', { nome: query })
+                .done(function(data) {
+                    if (data.length > 0) {
+                        $('#movieContainer').html(data.map(createMovieBlock).join(''));
+                    } else {
+                        $.post('https://lacinho.pythonanywhere.com/api/filme/get', { titulo: query })
+                            .done(function(data) {
+                                if (data) {
+                                    $('#movieContainer').html(createMovieBlock(data));
+                                } else {
+                                    $('#movieContainer').html('<p>Nenhum filme encontrado.</p>');
+                                }
+                            });
+                    }
+                });
+        }
+
+        // Evento de submissão do formulário de pesquisa
+        $('#searchForm').on('submit', function(e) {
+            e.preventDefault();
+            var query = $('#searchBox').val();
+            searchMovies(query);
+        });
+    </script>
+        
+        
+        
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 </body>
 </html>
